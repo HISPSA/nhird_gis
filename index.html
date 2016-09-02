@@ -8,10 +8,10 @@
 <meta name="viewport"
 	content="initial-scale=1, maximum-scale=1,user-scalable=no">
 <title>NHIRD GIS</title>
-<link rel="stylesheet" type="text/css" href="agsjs/dijit/css/TOC.css" />
 
-<link rel="stylesheet"	href="http://js.arcgis.com/3.7/js/dojo/dijit/themes/claro/claro.css">
-<link rel="stylesheet"	href="http://js.arcgis.com/3.7/js/esri/css/esri.css">
+
+<link rel="stylesheet"	href="http://js.arcgis.com/3.17/esri/css/esri.css">
+<link rel="stylesheet"	href="http://js.arcgis.com/3.17/dijit/themes/claro/claro.css">
 <link rel="stylesheet" type="text/css" title="Style" href="http://js.arcgis.com/3.7/js/dojo/dojox/grid/resources/Grid.css" />
 <link rel="stylesheet" type="text/css" title="Style" href="http://js.arcgis.com/3.7/js/dojo/dojox/grid/resources/claroGrid.css" />
 <style type="text/css">
@@ -49,30 +49,9 @@ html, body {
 
 	</style>
 	
-<script type="text/javascript">
-            var djConfig = {
-              parseOnLoad: false,
-              packages: [{
-                "name": "agsjs",
-                //if you want to host on your own server, download from
-                //http://gmaps-utility-gis.googlecode.com/svn/tags/agsjs/
-                // and put in folders then use path like: 
-                "location": location.pathname.replace(/\/[^/]+$/, '') + '/agsjs' 
-                // use /src/ for debug and /build/ for production.
-                // you can also use online version using the following location, 
-                // however please noted googlecode.com is not a true CDN and is not fast and may not be available.
-                // also, it is recommended to use a particular version from /tags/agsjs/<version>/
-                // in a production app to avoid unexpected results.
-                //"location": "http://gmaps-utility-gis.googlecode.com/svn/tags/agsjs/2.06/build/agsjs"
-			    //"location": "http://gmaps-utility-gis.googlecode.com/svn/tags/agsjs/latest/build/agsjs"
-			    //"location": "http://gmaps-utility-gis.googlecode.com/svn/trunk/agsjs/build/agsjs"
-                //"location": "http://gmaps-utility-gis.googlecode.com/svn/tags/agsjs/latest/build/agsjs"
-              }]
-            };
-</script>
-<script src="//js.arcgis.com/3.7/"></script>
+<script src="//js.arcgis.com/3.17/"></script>
 <script>
-var map, findTask,findParams,identifyTask,identifyParams,toc,tb,geometryService;
+var map, findTask,findParams,identifyTask,identifyParams,layerList,tb,geometryService;
 require(["dojo/dom",
          "dojo/dom-attr",
          "dojo/_base/Color",
@@ -103,6 +82,7 @@ require(["dojo/dom",
          "esri/dijit/Measurement",
          "esri/dijit/OverviewMap",
          "esri/dijit/HomeButton",
+         "esri/dijit/LayerList",
   
          "dijit/layout/BorderContainer", 
          "dijit/layout/TabContainer", 
@@ -122,15 +102,13 @@ require(["dojo/dom",
          
          "dojo/data/ObjectStore",
          "dojo/data/ItemFileReadStore",
-         "dojo/fx",
-         "agsjs/dijit/TOC",
-         
+         "dojo/fx",         
          ], function(dom,domAttr,Color,parser,Map,units,Graphic,
         		 ArcGISDynamicMapServiceLayer,ImageParameters,
         		 GeometryService,FindTask,FindParameters,IdentifyTask,IdentifyParameters,BufferParameters,Query,QueryTask,
         		 Draw,
         		 SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol,
-        		 Measurement,OverviewMap,HomeButton, TOC,Select, ObjectStore, Memory){
+        		 Measurement,OverviewMap,HomeButton, LayerList,Select, ObjectStore, Memory){
 	
 	 // call the parser to create the dijit layout dijits
     parser.parse(); // note djConfig.parseOnLoad = false;
@@ -138,7 +116,7 @@ require(["dojo/dom",
     //PD - Geometry service is required for Measurements, Drawing
    	//esri.config.defaults.io.proxyUrl = "/proxy";
     //esri.config.defaults.io.alwaysUseProxy = false;
-    geometryService = new GeometryService("http://??);
+    geometryService = new GeometryService("http://nhird.health.gov.za/gisnhird/rest/services/Utilities/Geometry/GeometryServer");
     
     var prov;
     
@@ -194,7 +172,7 @@ require(["dojo/dom",
      The map service is set as an ArcGISDynamicMapServiceLayer which has multiple layers for viewing.
      dynaLayer1 - param used for the Main layers.
     */
-    dynaLayer1 = new ArcGISDynamicMapServiceLayer("http://??", {
+    dynaLayer1 = new ArcGISDynamicMapServiceLayer("http://nhird.health.gov.za/gisnhird/rest/services/DOH_2013_V1/ZA_Web_2013/MapServer", {
        layerInfos:layerInfoArray
     });
    
@@ -269,23 +247,17 @@ require(["dojo/dom",
       	dynaLayer1.setVisibleLayers([1, 4, 60]);
       	
         try {
-          toc = new TOC({
-            map: map,
-            layerInfos: [{
-           /* PD add the world maps	
-              layer: featLayer1,
-              title: "FeatureLayer1"
-            }, {
-            */	
-              layer: dynaLayer1,
-              title: "NDOH Dynamic Layers",
-              // collapsed: false, // whether this root layer should be collapsed initially, default false.
-              slider: true // whether to display a transparency slider.
-            }]
-          }, 'tocDiv');
-          toc.startup();
+        	
+        	var layerList = new LayerList({
+        	    map: map,
+        	    showLegend: true,
+        	    showSubLayers: true,
+        	    showOpacitySlider: true,
+        	    layers: dynaLayer1,
+        	  },"tocDiv");
+        	layerList.startup();
            //_adjustToState
-          dojo.connect(toc, 'onLoad', function(){
+          dojo.connect(layerList, 'onLoad', function(){
             if (console){
             	//loadDistricts;
             	console.log('TOC loaded');
@@ -337,7 +309,7 @@ require(["dojo/dom",
    */ 
     function doIdentify(evt) {
     	 //create an identify task with url to map service
-        identifyTask = new IdentifyTask("http://??");
+        identifyTask = new IdentifyTask("http://nhird.health.gov.za/gisnhird/rest/services/DOH_2013_V1/ZA_Web_2013/MapServer");
         
         //create identify parameters and specify layers or visible layers based on the toc
         identifyParams = new IdentifyParameters();
@@ -398,7 +370,7 @@ require(["dojo/dom",
      //FIND BUTTON ON CLICK
     dojo.connect(dijit.byId("exeFind"), "onClick", function(){
     	//create find task with url to map service
-    	findTask = new FindTask("http://??");
+    	findTask = new FindTask("http://nhird.health.gov.za/gisnhird/rest/services/DOH_2013_V1/ZA_Web_2013/MapServer");
 
     	//create find parameters and define known values
     	findParams = new FindParameters();
@@ -601,7 +573,7 @@ require(["dojo/dom",
     		layerId = 7;
     	}
     		
-    	var qt = new QueryTask("http://??"+layerId);
+    	var qt = new QueryTask("http://nhird.health.gov.za/gisnhird/rest/services/DOH_2013_V1/ZA_Web_2013/MapServer/"+layerId);
         var query = new Query();
         //add an if statement if prov has a value in it
         query.where = "PROVINCE<>''";
@@ -625,7 +597,7 @@ require(["dojo/dom",
     function loadDistricts(){
     	//once the map loads get the districts from layer 3 (Use a query DC_NAME) reset the layer def remembering the
     	//province def. 	
-    	var qt = new QueryTask("http://??");
+    	var qt = new QueryTask("http://nhird.health.gov.za/gisnhird/rest/services/DOH_2013_V1/ZA_Web_2013/MapServer/1");
         var query = new Query();
         //add an if statement if prov has a value in it
         query.where = "PROVINCE<>''";

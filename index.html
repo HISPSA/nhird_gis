@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=7, IE=9, IE=10">
+<!--The viewport meta tag is used to improve the presentation and behavior of the samples
+    on iOS devices-->
+<meta name="viewport"
+	content="initial-scale=1, maximum-scale=1,user-scalable=no">
+<title>NHIRD GIS</title>
+<link rel="stylesheet" type="text/css" href="agsjs/dijit/css/TOC.css" />
+
+<link rel="stylesheet"	href="http://js.arcgis.com/3.7/js/dojo/dijit/themes/claro/claro.css">
+<link rel="stylesheet"	href="http://js.arcgis.com/3.7/js/esri/css/esri.css">
+<link rel="stylesheet" type="text/css" title="Style" href="http://js.arcgis.com/3.7/js/dojo/dojox/grid/resources/Grid.css" />
+<link rel="stylesheet" type="text/css" title="Style" href="http://js.arcgis.com/3.7/js/dojo/dojox/grid/resources/claroGrid.css" />
+<style type="text/css">
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+#rightPane {
+	width: 15%;
+}
+
+#centerPane {
+	width: 70%;
+}
+
+#leftPane {
+	width: 15%;
+}
+
+.dojoxGrid table {
+   margin: 0;
+}
+.dojoxGrid th, tr {
+   font-size: 8pt;
+}
+
+ #HomeButton {
+      position: absolute;
+      top: 95px;
+      left: 20px;
+      z-index: 50;
+    }
+
+	</style>
+	
+<script type="text/javascript">
+            var djConfig = {
+              parseOnLoad: false,
+              packages: [{
+                "name": "agsjs",
+                //if you want to host on your own server, download from
+                //http://gmaps-utility-gis.googlecode.com/svn/tags/agsjs/
+                // and put in folders then use path like: 
+                "location": location.pathname.replace(/\/[^/]+$/, '') + '/agsjs' 
+                // use /src/ for debug and /build/ for production.
+                // you can also use online version using the following location, 
+                // however please noted googlecode.com is not a true CDN and is not fast and may not be available.
+                // also, it is recommended to use a particular version from /tags/agsjs/<version>/
+                // in a production app to avoid unexpected results.
+                //"location": "http://gmaps-utility-gis.googlecode.com/svn/tags/agsjs/2.06/build/agsjs"
+			    //"location": "http://gmaps-utility-gis.googlecode.com/svn/tags/agsjs/latest/build/agsjs"
+			    //"location": "http://gmaps-utility-gis.googlecode.com/svn/trunk/agsjs/build/agsjs"
+                //"location": "http://gmaps-utility-gis.googlecode.com/svn/tags/agsjs/latest/build/agsjs"
+              }]
+            };
+</script>
+<script src="//js.arcgis.com/3.7/"></script>
+<script>
+var map, findTask,findParams,identifyTask,identifyParams,toc,tb,geometryService;
+require(["dojo/dom",
+         "dojo/dom-attr",
+         "dojo/_base/Color",
+         "dojo/parser",
+ 
+         "esri/map",
+         "esri/graphic",
+         "esri/units",
+         
+         "esri/layers/ArcGISDynamicMapServiceLayer",
+         "esri/layers/ImageParameters",
+         
+         "esri/tasks/GeometryService",
+         "esri/tasks/FindTask",
+         "esri/tasks/FindParameters",
+         "esri/tasks/IdentifyTask",
+		 "esri/tasks/IdentifyParameters",
+		 "esri/tasks/BufferParameters",
+		 "esri/tasks/query",
+		 "esri/tasks/QueryTask",
+		 
+         "esri/toolbars/draw",
+         
+         "esri/symbols/SimpleMarkerSymbol",
+         "esri/symbols/SimpleLineSymbol",
+         "esri/symbols/SimpleFillSymbol",
+         
+         "esri/dijit/Measurement",
+         "esri/dijit/OverviewMap",
+         "esri/dijit/HomeButton",
+  
+         "dijit/layout/BorderContainer", 
+         "dijit/layout/TabContainer", 
+         "dijit/layout/AccordionContainer", 
+         "dijit/layout/ContentPane", 
+         "dijit/layout/AccordionPane",
+         
+         "dijit/TitlePane",
+         
+         "dijit/form/CheckBox",
+         "dijit/form/Button",
+         "dijit/form/Select",
+         
+         "dojo/store/Memory",
+         
+         "dojox/grid/DataGrid",
+         
+         "dojo/data/ObjectStore",
+         "dojo/data/ItemFileReadStore",
+         "dojo/fx",
+         "agsjs/dijit/TOC",
+         
+         ], function(dom,domAttr,Color,parser,Map,units,Graphic,
+        		 ArcGISDynamicMapServiceLayer,ImageParameters,
+        		 GeometryService,FindTask,FindParameters,IdentifyTask,IdentifyParameters,BufferParameters,Query,QueryTask,
+        		 Draw,
+        		 SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol,
+        		 Measurement,OverviewMap,HomeButton, TOC,Select, ObjectStore, Memory){
+	
+	 // call the parser to create the dijit layout dijits
+    parser.parse(); // note djConfig.parseOnLoad = false;
+   
+    //PD - Geometry service is required for Measurements, Drawing
+   	//esri.config.defaults.io.proxyUrl = "/proxy";
+    //esri.config.defaults.io.alwaysUseProxy = false;
+    geometryService = new GeometryService("http://??);
+    
+    var prov;
+    
+    /*PD - 23/01/2014
+    OrgId parameter is obtained from the HTML Header to show the particular province or the entire map for SA.
+    */
+      
+    switch (getParameterByName("orgId"))
+    {
+       case '1':
+    	   prov = "";
+    	   break;
+       case '2':
+    	   prov = "EC";
+    	   break;
+       case '7013':
+    	   prov = "WC";
+    	   break;
+       case '6491':
+    	   prov = "NW";
+    	   break;
+       case '6064':
+    	   prov = "NC";
+    	   break;
+       case '5468':
+    	   prov = "MP";
+    	   break;
+       case '4679':
+    	   prov = "LP";
+    	   break;
+       case '3376':
+    	   prov = "KZN";
+    	   break;
+       case '1960':
+    	   prov = "GP";
+    	   break;
+       case '1372':
+    	   prov = "FS";
+    	   break;
+       default: 
+    	   prov = "";
+           break;
+    }
+    
+    console.log("PROVINCE= " + prov);
+    
+    var layerInfoArray = [];
+    var layerDefinitions = [];
+    var imageParams;
+    
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    /*PD - 23/01/2014
+     The map service is set as an ArcGISDynamicMapServiceLayer which has multiple layers for viewing.
+     dynaLayer1 - param used for the Main layers.
+    */
+    dynaLayer1 = new ArcGISDynamicMapServiceLayer("http://??", {
+       layerInfos:layerInfoArray
+    });
+   
+   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   /*PD - 23/01/2014
+    map - param used for the map display.
+   */
+    map = new Map("mapDiv", {
+  	  autoResize:true,
+  	  extent:dynaLayer1.fullExtent,
+  	  sliderPosition: "top-left",
+    });
+    
+   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    /*PD - 23/01/2014
+    measurement tool.
+    TODO -- Units of measure to be defined for SA.
+   */
+    var measurement = new Measurement({
+   		map: map,
+   		defaultAreaUnit: esri.Units.SQUARE_KILOMETERS,
+   		defaultLengthUnit: esri.Units.KILOMETERS,
+ 		},dojo.byId('measurementDiv'));
+    measurement.startup();
+    
+   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    /*PD - 23/01/2014
+    overview tool.
+    Can be set outside of the map by adding a dojo.byId();.
+   */
+    var overview = new OverviewMap({
+  	    map: map,
+  	    color:" #9fb7e7",
+  	  	attachTo: "bottom-right",
+  	    opacity: .40,
+  	    visible:true,
+  	  	maximizeButton:true,
+  	  	width: 200,
+  	  	height: 200,
+  	});
+    overview.startup();
+    
+   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    /*PD - 23/01/2014
+    homebutton tool.
+    Used to go to the original extent of the map, allows for easier navigation.
+   */
+    var home = new HomeButton({
+        map: map
+      }, "HomeButton");
+      home.startup();
+  
+    //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      /*PD - 23/01/2014
+      Drawing tool.
+      Used to for Buffering shapes on to the map.
+     */  
+    tb = new Draw(map, {
+        tooltipOffset: 20,
+        drawTime: 90
+      });
+    
+   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    /*PD - 23/01/2014
+    Table of contents tool.
+    Used to turn on/off the layers from the Dynamic Layer.
+   */ 
+    var h = dojo.connect(map, 'onLayersAddResult', function(results){
+    
+    	// the default visibility of service.
+        // TOC will honor the overwritten value.
+      	dynaLayer1.setVisibleLayers([1, 4, 60]);
+      	
+        try {
+          toc = new TOC({
+            map: map,
+            layerInfos: [{
+           /* PD add the world maps	
+              layer: featLayer1,
+              title: "FeatureLayer1"
+            }, {
+            */	
+              layer: dynaLayer1,
+              title: "NDOH Dynamic Layers",
+              // collapsed: false, // whether this root layer should be collapsed initially, default false.
+              slider: true // whether to display a transparency slider.
+            }]
+          }, 'tocDiv');
+          toc.startup();
+           //_adjustToState
+          dojo.connect(toc, 'onLoad', function(){
+            if (console){
+            	//loadDistricts;
+            	console.log('TOC loaded');
+            	console.log(dynaLayer1.visibleLayers);
+            } 
+           
+          });
+          
+          dojo.disconnect(h);
+        } catch (e) {
+          alert(e);
+        }
+      });
+
+  //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    /*PD - 23/01/2014
+   LayerDefinitions
+   Used to display a particular province based on the OrgId sent in.
+   */ 
+    if (prov !=""){
+    	dojo.connect(dynaLayer1, 'onLoad', function(){	
+    		
+    		if (layerInfoArray.length < 1){
+  		  		var str = "PROVINCE = '" + prov +"'";  
+  	  			console.log(str);
+  	  			//layerInfoArray = dynaLayer1.layerInfos.length;
+  				//Start at Layer 2 to keep the context of the rest of the map .....why is the districts not displaying
+  				console.log("2");
+  	  			for (var i=3, il=dynaLayer1.layerInfos.length; i<il; i++) {
+  		  			//GET THIS VALUE FROM THE HTML HEADER, IF BLANK DISPLAY ALL ..
+  	    			layerDefinitions[i] = str;
+	  	  		}
+  	 
+  	  			dynaLayer1.setLayerDefinitions(layerDefinitions);
+  	  }
+  	  
+  		dynaLayer1.setLayerDefinitions(layerDefinitions);
+  	  map.addLayers([dynaLayer1]);
+     });
+    }else{
+    	map.addLayers([dynaLayer1]);	
+    }	
+ 	
+   /*Start Identify+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   PD - 23/01/2014
+   Indentification of items on the map for layers that are ON.
+   Used for Identification of graphics.
+   Methods :: doIdentify(evt), showIdentifyResults(results) and  dojo.connect(idenButton, "onClick", function()
+   */ 
+    function doIdentify(evt) {
+    	 //create an identify task with url to map service
+        identifyTask = new IdentifyTask("http://??");
+        
+        //create identify parameters and specify layers or visible layers based on the toc
+        identifyParams = new IdentifyParameters();
+        identifyParams.tolerance = 10;
+        identifyParams.returnGeometry = true;
+        identifyParams.layerIds = dynaLayer1.visibleLayers
+      	identifyParams.layerOption = esri.tasks.IdentifyParameters.LAYER_OPTION_VISIBLE;
+        identifyParams.width  = map.width;
+        identifyParams.height = map.height;
+    	identifyParams.geometry = evt.mapPoint;
+    	identifyParams.mapExtent = map.extent;
+    	identifyTask.execute(identifyParams, showIdentifyResults);
+    }
+    
+    function showIdentifyResults(results) {
+    	//find results return an array of findResult.
+    	map.graphics.clear();
+    	var dataForIdentifyGrid = [];
+       //Build an array of attribute information and add each found graphic to the map
+      	dojo.forEach(results, function(result) {
+      		var graphic = result.feature;
+      		dataForIdentifyGrid.push([result.layerName, result.value]);
+      		map.graphics.add(graphic);
+      });
+       
+      	 var iddata = {
+      		      items: dataForIdentifyGrid
+      		    };
+      		    var idStore = new dojo.data.ItemFileReadStore({
+      		      data: iddata
+      		    });
+      		    idGrid.setStore(idStore);
+    }
+    
+    //INDENTIFY BUTTON ON CLICK ....REMEMBER TO DISCONNECT ALL THIS
+    var idenButton = dijit.byId("IdenButton");
+    var handle;
+    dojo.connect(idenButton, "onClick", function(){
+    	
+    	if (idenButton.checked == true){
+    	 	handle = dojo.connect(map, "onClick", doIdentify)
+    	}
+    	if (idenButton.checked == false){
+    		dojo.disconnect(handle);
+    		handle.remove;
+    	}
+    });
+
+//End Identify+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+	/*Start Find+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   PD - 23/01/2014
+   Finding of items on the map for layers that are ON
+   Used for Identification of graphics.
+   Methods :: dojo.connect(grid, "onRowClick", function(evt), showFindResults(results) and
+		   dojo.connect(dijit.byId("exeFind"), "onClick", function()
+   */ 
+     //FIND BUTTON ON CLICK
+    dojo.connect(dijit.byId("exeFind"), "onClick", function(){
+    	//create find task with url to map service
+    	findTask = new FindTask("http://??");
+
+    	//create find parameters and define known values
+    	findParams = new FindParameters();
+    	findParams.returnGeometry = true;
+    	findParams.layerIds = dynaLayer1.visibleLayers;
+    	findParams.searchFields = ["NAME","DCNAME","OU5","OU3","OU4","PR_NAME", "WARD_ID", "MAP_TITLE", "MUNICNAME"];
+    	//set the search text to find parameters
+    	findParams.searchText = dojo.byId("searchText").value;
+    	findTask.execute(findParams, showFindResults);
+     });
+    
+   //FIND / SEARCH RESULTS 
+  function showFindResults(results) {
+	
+    //symbology for graphics
+    var markerSymbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_SQUARE, 10, 
+    		new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 0, 0]), 1), new Color([0, 255, 0, 0.25]));
+    var lineSymbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASH, 
+    		new Color([255, 0, 0]), 1);
+    var polygonSymbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_NONE, 
+    		new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASHDOT, new Color([255, 0, 0]), 2), new Color([255, 255, 0, 0.25]));
+
+    //find results return an array of findResult.
+    map.graphics.clear();
+    var dataForGrid = [];
+    //Build an array of attribute information and add each found graphic to the map
+     var items = dojo.map(results,function(result){
+          var graphic = result.feature;
+          console.log(graphic.geometry.type);
+          switch (graphic.geometry.type) {
+          case "point":
+            graphic.setSymbol(markerSymbol);
+            break;
+          case "polyline":
+            graphic.setSymbol(lineSymbol);
+            break;
+          case "polygon":
+            graphic.setSymbol(polygonSymbol);
+            break;
+          }
+          map.graphics.add(graphic);
+          return result.feature.attributes;
+        });
+    
+    var data = {
+   	//need to add the unique identifier here OBJECTID
+      identifier: "OBJECTID",  //This field needs to have unique values
+      label: "OBJECTID", //Name field for display. Not pertinent to a grid but may be used elsewhere.	
+      items: items
+    };
+    var store = new dojo.data.ItemFileReadStore({
+      data: data
+    });
+    grid.setStore(store);
+    
+    //Zoom back to the initial map extent
+    map.centerAndZoom(center, zoom);
+  }
+
+//Zoom to the parcel when the user clicks a row
+ dojo.connect(grid, "onRowClick", function(evt){
+    var clickedObjId = grid.getItem(evt.rowIndex).OBJECTID;
+    var selectedObjId;
+	var pt;
+    dojo.forEach(map.graphics.graphics,function(graphic){
+      if((graphic.attributes) && graphic.attributes.OBJECTID === clickedObjId){
+    	  selectedObjId = graphic;
+    	  pt = graphic.geometry;
+        return;
+      }
+    });//end foreach map.graphic..
+    
+    var objIdExtent;
+    
+    if (pt.type == "point"){
+    	var factor = 500; //some factor for converting point to extent
+    	objIdExtent = new esri.geometry.Extent(pt.x - factor, pt.y - factor, pt.x + factor, pt.y + factor, pt.spatialReference);
+    }else{
+    	objIdExtent = selectedObjId.geometry.getExtent();
+    }//end IF
+    map.setExtent(objIdExtent);
+  }); //end dojo connect onRowClick
+//End Find+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++  
+  
+/*Start Buffer+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   PD - 23/01/2014
+   Buffering
+   Used for buffering graphics on to the map.
+   Methods :: 
+   */ 
+	//need some error handling here ????
+
+	map.on("load", initToolbar);
+	
+	function initToolbar(evtObj) {
+      app.tb = new Draw(evtObj.map);
+      app.tb.on("draw-end", doBuffer);
+    }//end initToolbar
+
+    function doBuffer(evtObj) {
+      var geometry = evtObj.geometry,
+      map = app.map,
+      geometryService = app.geometryService;
+      
+      switch (geometry.type) {
+         case "point":
+           var symbol = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_SQUARE, 10, 
+        		   new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255,0,0]), 1), new Color([0,255,0,0.25]));
+           break;
+         case "polyline":
+           var symbol = new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASH, new Color([255,0,0]), 1);
+           break;
+         case "polygon":
+           var symbol = new SimpleFillSymbol(SimpleFillSymbol.STYLE_NONE, 
+        		   new SimpleLineSymbol(SimpleLineSymbol.STYLE_DASHDOT, new Color([255,0,0]), 2), new Color([255,255,0,0.25]));
+           break;
+      }// end Switch
+
+      var graphic = new Graphic(geometry, symbol);
+      map.graphics.add(graphic);
+
+      //setup the buffer parameters
+      var params = new BufferParameters();
+      params.distances = [ dom.byId("distance").value ];
+      params.bufferSpatialReference = new esri.SpatialReference({wkid: dom.byId("bufferSpatialReference").value});
+      params.outSpatialReference = map.spatialReference;
+      params.unit = GeometryService[dom.byId("unit").value];
+
+      if (geometry.type === "polygon") {
+        //if geometry is a polygon then simplify polygon.  This will make the user drawn polygon topologically correct.
+        geometryService.simplify([geometry], function(geometries) {
+          params.geometries = geometries;
+          geometryService.buffer(params, showBuffer);
+        });
+      } else {
+        params.geometries = [geometry];
+        geometryService.buffer(params, showBuffer);
+      }
+    } //end doBuffer
+
+    function showBuffer(bufferedGeometries) {
+      var symbol = new SimpleFillSymbol(
+        SimpleFillSymbol.STYLE_SOLID,
+        new SimpleLineSymbol(
+          SimpleLineSymbol.STYLE_SOLID,
+          new Color([255,0,0,0.65]), 2
+        ),
+        new Color([255,0,0,0.35])
+      );
+
+      array.forEach(bufferedGeometries, function(geometry) {
+        var graphic = new Graphic(geometry, symbol);
+        app.map.graphics.add(graphic);
+      });
+      app.tb.deactivate();
+      app.map.showZoomSlider();
+    }// end showBuffer
+    
+    dojo.connect(dijit.byId("drawBuffer"), "onClick", function(){
+    	
+		var lDraw = "esri.toolbars.Draw." + dom.byId("bufferTool").value;
+    	app.tb.activate(eval(lDraw));
+    	app.map.hideZoomSlider();
+    });
+    
+    dojo.connect(dijit.byId("clearBuffer"), "onClick", function(){
+    	app.map.graphics.clear();
+    	app.tb.deactivate();
+        app.map.showZoomSlider();
+     }); 
+    
+    app = {
+      map: map,
+      tb: tb,
+      geometryService: geometryService
+    };
+    //*End Buffer+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    //TEST BUTTON ON CLICK
+    
+      dojo.connect(dijit.byId("test"), "onClick", function(){
+        	//set the layer definition as per the selected field in target
+        	console.log(dijit.byId("target").value);
+        	
+        });
+
+    dojo.connect(dom.byId("filter"), "onchange", function(){
+    	dijit.byId('target').removeOption(dijit.byId('target').getOptions());
+    	var queryFilter = dom.byId("filter").value;
+    	var outFieldValue, layerId;
+    	//if prov(1), district(4)or sub district(7)
+    	if (queryFilter == "PROVINCE"){
+    		outFieldValue = "PR_NAME";
+    		layerId = 1;
+    	}else if(queryFilter == "DISTRICT"){
+    		outFieldValue = "MUNICNAME";
+    		layerId = 4;
+    	}else if(queryFilter == "SUB_DISTRICT"){
+    		outFieldValue = "MUNICNAME";
+    		layerId = 7;
+    	}
+    		
+    	var qt = new QueryTask("http://??"+layerId);
+        var query = new Query();
+        //add an if statement if prov has a value in it
+        query.where = "PROVINCE<>''";
+        query.returnGeometry = false;
+        
+        query.outFields = [outFieldValue];
+        qt.execute(query, function(results) {
+              // add this to a grid for selection or a dropdown.
+              for (var i=0, il=results.features.length; i<il; i++) {
+            	 //concatFld = concatFld + results.features[i].attributes["DC_NAME"]
+            	 //dataForDistrictFilter.push(results.features[i].attributes["DC_NAME"]);
+            	 var o = dojo.create("option", {label: results.features[i].attributes[outFieldValue], 
+            		 value: results.features[i].attributes[outFieldValue]});    
+        	     dijit.byId('target').addOption(o); 
+             }; //end for
+          }); //end execute
+        }); //end connect - test
+
+        
+    //use this for on Load    
+    function loadDistricts(){
+    	//once the map loads get the districts from layer 3 (Use a query DC_NAME) reset the layer def remembering the
+    	//province def. 	
+    	var qt = new QueryTask("http://??");
+        var query = new Query();
+        //add an if statement if prov has a value in it
+        query.where = "PROVINCE<>''";
+        query.returnGeometry = false;
+        query.outFields = ["PR_NAME"];
+        qt.execute(query, function(results) {
+              // add this to a grid for selection or a dropdown.
+              for (var i=0, il=results.features.length; i<il; i++) {
+            	 //concatFld = concatFld + results.features[i].attributes["DC_NAME"]
+            	 //dataForDistrictFilter.push(results.features[i].attributes["DC_NAME"]);
+            	 var o = dojo.create("option", {label: results.features[i].attributes["PR_NAME"], 
+            		 value: results.features[i].attributes["PR_NAME"]});    
+        	     dijit.byId('target').addOption(o); 
+             }; //end for
+          }); //end execute
+        }
+
+//end require   
+});
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+</script>
+</head>
+
+<body class="claro">
+	<!--[if IE 7]>
+<style>
+  html, body {
+    margin: 0;
+  }
+</style>
+<![endif]-->
+	<!-- Add the buttons for popping up the legend, search, identify, overview, etc-->
+ <div data-dojo-type="dijit/layout/BorderContainer" style="width: 100%; height: 100%;">
+ 	<!-- Health Header to go here -->
+    <div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region:'top'">
+    <img src="images/Health.jpg" alt="National Department of Health" width="100%">
+    </div>
+    
+    <div id="rightPane" data-dojo-type="dijit/layout/AccordionContainer" data-dojo-props="region:'leading'">
+     	<!-- Information -->
+        <div data-dojo-type="dijit/layout/AccordionPane" title="Identification">Click to turn identify on 
+        	<button id="IdenButton" data-dojo-type="dijit/form/ToggleButton" data-dojo-props="iconClass:'dijitCheckBoxIcon', checked: false">
+    			Identify
+			</button>
+        
+        	<table data-dojo-type="dojox/grid/DataGrid" jsid="idGrid" id="idGrid" autowidth="true">
+      		<thead>
+        		<tr>
+          		<th field="0" >Layer</th>
+          		<th field="1" >Value</th> 
+        		</tr>
+      		</thead>
+    		</table>
+        
+        </div>
+    	<!-- Measurement -->
+        <div data-dojo-type="dijit/layout/AccordionPane" title="Measurement">
+			<div id="measurementDiv"></div>
+		</div>
+        <!-- Find/Search -->
+        <div data-dojo-type="dijit/layout/AccordionPane" title="Find">
+        
+        <div>
+		     Find Name:
+      		<input type="text" id="searchText" value="mafi" />
+      		<button data-dojo-type="dijit/form/Button" id="exeFind">Go</button>
+    	</div>
+    		<!--Refer to field by the position id, since the data doesn't have field names-->
+    		<table data-dojo-type="dojox/grid/DataGrid" jsid="grid" id="grid" data-dojo-props="rowsPerPage:'5', rowSelector:'20px'" 
+    		autowidth="true">
+      		<thead>
+        		<tr>
+        		<th field="OBJECTID" >ObjectID</th>
+          		<th field="NAME">Layer</th>
+          		<th field="PROVINCE" >Field</th>
+        		</tr>
+      		</thead>
+    		</table>
+    	</div>
+        <!-- Buffer -->
+        <div data-dojo-type="dijit/layout/AccordionPane" title="Buffer">
+	  <select id="bufferTool" style="width:100px;">
+        <option value="LINE">Line</option>
+        <option value="POLYLINE">Polyline</option>
+        <option value="FREEHAND_POLYLINE">Freehand Polyline</option>
+        <option value="POLYGON">Polygon</option>
+        <option value="FREEHAND_POLYGON">Freehand Polygon</option>
+      </select><br />
+       <button data-dojo-type="dijit/form/Button" id="drawBuffer">Draw</button>
+      <br /><hr />
+      <div><b>Buffer Parameters</b></div>
+      Spatial Reference WKID: <input type="text" id="bufferSpatialReference" size="5" value="32612" /><br />
+      Distance: <input type="text" id="distance" size="5" value="25" />
+      <select id="unit" style="width:100px;">
+        <option value="UNIT_KILOMETER">Kilometers</option>
+        <option value="UNIT_METER">Meters</option>
+        <option value="UNIT_NAUTICAL_MILE">Nautical Miles</option>
+        <option value="UNIT_DEGREE">Degrees</option>
+      </select><br />
+      <button data-dojo-type="dijit/form/Button" id="clearBuffer">Clear Graphics</button>
+        </div>
+        <!-- Search -->
+      <!--    
+        <div data-dojo-type="dijit/layout/AccordionPane" title="pane #3">
+        Filter by :
+      <select id="filter" style="width:100px;">
+        <option value="PROVINCE">Province</option>
+        <option value="DISTRICT">District</option>
+        <option value="SUB_DISTRICT">Sub district</option>
+      </select><br />
+         Select:
+         <div data-dojo-type="dijit/form/Select" id="target"></div>
+         <button data-dojo-type="dijit/form/Button" id="test">Test</button>
+        </div>
+        -->
+    </div>
+    <div id="centerPane"data-dojo-type="dijit/layout/TabContainer" data-dojo-props="region:'center'">
+        <div id="mapDiv" data-dojo-type="dijit/layout/ContentPane" title="NDOH All Layers"></div>
+         <div id="HomeButton"></div>
+        <!-- Additional Maps for Indicators, etc 
+        <div data-dojo-type="dijit/layout/ContentPane" title="tab #2">tab pane #2</div>
+        <div data-dojo-type="dijit/layout/ContentPane" title="tab #3">tab pane #3</div> -->
+    </div>
+    <div id="leftPane"data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region:'trailing'">Table of Contents
+    <div id="tocDiv"></div>
+    </div>
+    <!--  
+    <div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region:'bottom'">Bottom pane</div> -->
+</div>
+</body>
+</html>
